@@ -70,6 +70,12 @@ Requisitos solo en el PC donde se compila:
 
 Después, doble clic en `crear_exe.bat`. El programa queda en `dist/EtiquetadorCuadros.exe`. Ese `.exe` funciona en cualquier PC con Windows sin instalar Python ni tener internet.
 
+Para verlo funcionar con datos de ejemplo inventados (sin necesidad de esquemas):
+
+```
+EtiquetadorCuadros.exe --demo
+```
+
 Para probarlo sin ventana:
 
 ```
@@ -87,6 +93,7 @@ Deja un resumen en `ESQUEMA.pdf.prueba.txt`.
 | `extraccion.py` | Detección de bornas, elementos, número de esquema y copias |
 | `excel.py` | Generación de los Excel para GeniusPro |
 | `config.py` | Ajustes recordados (SW-CODE por regleta) |
+| `demo.py` | Datos de ejemplo inventados para el modo `--demo` |
 
 ## Tecnologías
 

@@ -778,5 +778,22 @@ if __name__ == "__main__":
     if len(sys.argv) > 2 and sys.argv[1] == "--prueba":
         prueba_sin_ventana(sys.argv[2])
         sys.exit(0)
+    if len(sys.argv) > 1 and sys.argv[1] == "--demo":
+        # datos inventados, para enseñar el programa o hacer capturas sin esquemas reales
+        import demo
+        app = App()
+
+        def _cargar_demo():
+            bornas, elementos = demo.datos()
+            app.pdf_path = "demo"
+            app._cargar_bornas(bornas)
+            app._cargar_elementos(elementos)
+            app._actualizar_cabecera()
+            app.copias["CECE00000000001"].set("2")
+            app._pintar()
+            app._estado("Datos de ejemplo inventados (modo demostración).")
+        app.after(200, _cargar_demo)
+        app.mainloop()
+        sys.exit(0)
     archivos = sys.argv[1:] or None  # archivos arrastrados sobre el .exe (uno o varios)
     App(archivos).mainloop()
