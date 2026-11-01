@@ -4,6 +4,34 @@ Aplicación de escritorio para Windows que lee esquemas eléctricos y genera aut
 
 Evita copiar a mano cientos de marcas desde los planos: abres el esquema, revisas la lista y exportas.
 
+## Capturas
+
+> Capturas hechas con datos de ejemplo inventados (esquemas CECE00000000001 y CECE00000000002); no corresponden a ningún esquema real.
+
+**Bornas:** marcas de cada regleta, con su esquema, descripción y SW-CODE. Arriba, las copias por esquema y el total de etiquetas.
+
+![Pestaña Bornas](docs/capturas/01_bornas.png)
+
+**Elementos de la placa:** interruptores, contactores, relés, protecciones… filtrables por tipo.
+
+![Pestaña Elementos](docs/capturas/02_elementos.png)
+
+**Todo:** bornas y elementos juntos.
+
+![Pestaña Todo](docs/capturas/03_todo.png)
+
+**Búsqueda:** por ejemplo, solo los contactores (KM).
+
+![Búsqueda](docs/capturas/04_busqueda.png)
+
+**Excel generado (bornas):** el primer esquema con 2 copias seguidas; cada copia en su bloque. La etiqueta siempre en la columna C. (La fila azul es solo un rótulo de la captura: el Excel real no lleva cabecera.)
+
+![Excel de bornas](docs/capturas/05_excel_bornas.png)
+
+**Excel generado (elementos):**
+
+![Excel de elementos](docs/capturas/06_excel_elementos.png)
+
 ## Qué hace
 
 - **Bornas:** lee las páginas «Plano de bornes» (también en francés, inglés y alemán) y saca la marca de cada borna, su regleta, posición y una descripción orientativa.
