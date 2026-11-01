@@ -1,0 +1,100 @@
+﻿ETIQUETADOR DE CUADROS
+======================
+
+Lee un esquema electrico y saca en Excel, listo para GeniusPro
+(impresora Cembre):
+- Las marcas de las BORNAS (paginas "Plano de bornes" / "Plan des bornes").
+- Las etiquetas de los ELEMENTOS cableados en la PLACA (Q, KM, reles,
+  protecciones, arrancadores...). Los de la puerta y los de fuera del
+  armario (motores, finales de carrera...) no se incluyen.
+
+FORMATOS QUE LEE
+- PDF exportado del programa de esquemas (el mas fiable).
+- PDF escaneado o imagen (PNG, JPG, TIF): con reconocimiento de texto (OCR).
+  Puede equivocarse: REVISA LA LISTA antes de imprimir. Tarda unos 10 s
+  por pagina.
+- DXF de AutoCAD: lee textos y atributos de bloques. Si el dibujo tiene
+  varias hojas, cada presentacion es una hoja; si estan todas en el
+  espacio modelo, las separa por los marcos.
+- DWG de AutoCAD: necesita "ODA File Converter" (gratuito) instalado:
+  https://www.opendesign.com/guestfiles/oda_file_converter
+  Si no, en AutoCAD "Guardar como" DXF y abrir el DXF.
+- Listados Excel (.xlsx) o CSV exportados de EPLAN, SEE Electrical,
+  AutoCAD Electrical... (lista de bornas o lista de aparatos). Al abrirlo
+  pregunta que contiene y en que columna esta cada dato.
+  El .xls antiguo no: abrirlo en Excel y guardarlo como .xlsx.
+
+CREAR EL .EXE (solo una vez)
+1. Hace falta Python en el PC donde se crea. Mejor Python 3.12 de 64 bits
+   (x64): https://www.python.org/downloads/  (al instalar, marcar
+   "Add python.exe to PATH"). Con versiones mas nuevas o con Python ARM el
+   OCR puede no instalarse; el .bat avisa al final si el OCR esta incluido.
+2. Doble clic en crear_exe.bat (necesita internet para descargar librerias).
+3. El programa queda en  dist\EtiquetadorCuadros.exe  (unos 180 MB, casi
+   todo es el OCR). Ese .exe ya no necesita Python ni internet: se puede
+   copiar a cualquier PC con Windows o dejar en una carpeta compartida.
+
+USARLO
+- Doble clic en EtiquetadorCuadros.exe -> "Abrir esquema...", o
+  arrastrar uno o varios archivos encima del .exe.
+- VARIOS ESQUEMAS: "Abrir esquema..." empieza de cero (se pueden elegir
+  varios a la vez con Ctrl/Mayus + clic) y "Anadir esquema..." los suma a
+  los que ya hay. Cada etiqueta lleva la columna ESQUEMA con el numero de
+  instalacion del cajetin (p. ej. CECE00000000001; si no lo encuentra, el
+  nombre del archivo). Un esquema que ya esta cargado no se anade dos veces.
+  En el Excel cada esquema va en su bloque, con fondo alterno blanco/gris
+  y la primera fila en negrita, para ver donde empieza y acaba cada uno.
+- COPIAS: bajo el nombre de los esquemas hay una casilla "Copias" para
+  cada uno (1 por defecto). Si pones 3, el Excel repite las etiquetas de
+  ese esquema 3 veces seguidas (columna Copia: 1/3, 2/3, 3/3), cada copia
+  en su bloque de color. Las tablas de la ventana no se repiten; arriba a
+  la derecha se ve el total "con copias". El Resumen ya cuenta las copias.
+- Tres pestanas. Lo que se guarda depende de la pestana abierta:
+    Bornas     -> filtrar por regleta;  guarda  <esquema>_bornas.xlsx
+    Elementos  -> filtrar por tipo;     guarda  <esquema>_elementos.xlsx
+    Todo       -> bornas + elementos;   guarda  <esquema>_todo.xlsx
+- "Copiar esta lista" copia los textos de la pestana abierta.
+- SW-CODE (consumible donde se imprime cada etiqueta): encima de cada tabla
+  escribe el numero y pulsa "Aplicar a seleccionadas" (Mayus/Ctrl + clic,
+  o Ctrl+E para todo lo visible) o "Aplicar a todas las visibles".
+  Los elementos llevan 181 por defecto. El programa recuerda el SW-CODE de
+  cada regleta (XALI, XSEN...) para el siguiente esquema.
+  Se guarda en %APPDATA%\EtiquetadorCuadros\config.json
+- Un listado Excel/CSV de bornas solo cambia la pestana Bornas, y uno de
+  aparatos solo la de Elementos: se pueden abrir los dos, uno tras otro.
+
+Hojas de cada Excel (SIN fila de cabecera: los datos empiezan en la fila 1).
+En TODAS las hojas: A Esquema | B Copia | C ETIQUETA | D SW-CODE | ...
+- GeniusPro (la primera): A Esquema | B Copia | C Texto | D SW-CODE.
+  (En "todo" hay dos: GeniusPro bornas y GeniusPro elementos.)
+- Bornas: ... | E Regleta | F Pos. | G Descripcion | H Pagina
+- Elementos: ... | E Tipo | F Paginas
+- Resumen: cuantas etiquetas hay por regleta o por tipo, y por SW-CODE.
+
+IMPORTAR EN GENIUSPRO (De Excel)
+- Cualquier hoja. Linea de inicio: 1.
+- Valor inicial: [C].  Esquema (opcional): [A].
+- Guarda la configuracion con "Importar / Exportar opciones" para no
+  tener que repetirla.
+
+QUITAR ESQUEMAS
+- El boton "x" junto a cada esquema (linea "Copias") lo quita de la lista.
+- "Limpiar todo" vacia la lista para empezar de cero sin cerrar el programa.
+
+AVISOS
+- Contactores, reles, guardamotores, protecciones y arrancadores se
+  consideran siempre de la PLACA (salvo que esten dibujados en la puerta).
+  Si no hay plano de placa (o es un listado), se quitan motores, pilotos,
+  pulsadores y finales de carrera.
+  El segundo contactor de un inversor (KM20.1) va con el primero (KM20).
+- La placa/puerta se detecta por las paginas de armario cuyo titulo
+  contiene PLACA/PLAQUE o PUERTA/PORTE. Un elemento que solo este dibujado
+  en la placa y no aparezca en el esquema puede no salir: revisa la lista.
+- La primera vez Windows puede mostrar "Windows protegio su PC" porque el .exe
+  no esta firmado: "Mas informacion" -> "Ejecutar de todas formas".
+- Si el .exe se creo sin OCR, las paginas sin texto (escaneadas) se saltan
+  y el resto del esquema se lee igual. En "Formatos admitidos" se ve si el
+  OCR esta incluido.
+- Para comprobar el programa sin ventana:
+    EtiquetadorCuadros.exe --prueba ESQUEMA.pdf
+  deja un resumen en ESQUEMA.pdf.prueba.txt

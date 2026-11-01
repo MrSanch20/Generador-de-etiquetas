@@ -1,0 +1,13 @@
+dist/
+build/
+__pycache__/
+*.spec
+*.pyc
+
+# Esquemas y resultados (datos de clientes)
+*.pdf
+*.dxf
+*.dwg
+*.xlsx
+*.csv
+*.prueba.txt
