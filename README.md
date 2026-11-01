@@ -6,7 +6,7 @@ Evita copiar a mano cientos de marcas desde los planos: abres el esquema, revisa
 
 ## Capturas
 
-> Capturas hechas con datos de ejemplo inventados (esquemas CECE00000000001 y CECE00000000002); no corresponden a ningún esquema real.
+> Capturas del programa en Windows en modo demostración (`--demo`), con datos de ejemplo inventados (esquemas CECE00000000001 y CECE00000000002); no corresponden a ningún esquema real.
 
 **Bornas:** marcas de cada regleta, con su esquema, descripción y SW-CODE. Arriba, las copias por esquema y el total de etiquetas.
 
