@@ -54,7 +54,9 @@ if "%OCR%"=="1" (
 
 echo.
 echo [4/4] Creando el .exe (tarda unos minutos)...
-set EXTRA=--collect-data ezdxf
+rem Cierra el programa si esta abierto: si no, Windows no deja sobrescribir el .exe
+taskkill /f /im EtiquetadorCuadros.exe >nul 2>nul
+set EXTRA=--collect-data ezdxf --collect-all pymupdf
 if "%OCR%"=="1" set EXTRA=%EXTRA% --collect-all rapidocr --collect-all onnxruntime
 %PY% -m PyInstaller --noconfirm --onefile --windowed --name EtiquetadorCuadros %EXTRA% etiquetador.py
 if errorlevel 1 goto error

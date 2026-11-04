@@ -11,6 +11,8 @@ from collections import OrderedDict, defaultdict
 from lectores import HORIZONTAL, VERTICAL
 
 MAX_DIST_DESCRIPCION = 50       # distancia máx. borna <-> texto descriptivo
+LINEA = 15                      # alto (pt) que se considera "la misma línea" al ordenar
+GAP_FILA = 30                   # separación vertical (pt) mínima entre dos filas de carriles de la placa
 PIE = 0.93                      # por debajo de esta altura (fracción) está el cajetín
 
 # Título de las páginas de bornas, en varios idiomas:
@@ -24,11 +26,17 @@ ZONAS = (("Placa", ("PLACA", "PLAQUE", "MOUNTING PLATE", "MONTAGEPLATTE")),
 # Designación de elemento: letras + número (KM100, Q20, H20.1, ATS1.0, S0.1…)
 EQUIPO_RE = re.compile(r"[A-Z]{1,4}\d{1,4}(?:\.\d+)?")
 NO_EQUIPO_RE = re.compile(r"^(L\d|N|PE)$")          # potenciales, no elementos
+# Designación solo con letras (RS, KMN, QA, FI, KR…): 2-4 letras. Solo se acepta si
+# empieza por un prefijo de tipo conocido (TIPOS) y aparece en el plano de la placa.
+SOLO_LETRAS_RE = re.compile(r"[A-Z]{2,4}")
+DENTRO_ARMARIO = {"Contactor", "Relé", "Interruptor / guardamotor", "Protección", "Arrancador suave"}
+# Tipos que se aceptan aunque el texto tenga otro estilo o no lleve número
+TIPOS_PLACA = DENTRO_ARMARIO | {"Fuente / equipo electrónico", "Resistencia"}
 TIPOS = {
     "ATS": "Arrancador suave", "KM": "Contactor", "FC": "Final de carrera",
     "K": "Relé", "Q": "Interruptor / guardamotor", "F": "Protección", "H": "Piloto",
     "S": "Pulsador / selector", "M": "Motor", "U": "Fuente / equipo electrónico",
-    "X": "Regleta de bornas",
+    "X": "Regleta de bornas", "R": "Resistencia",
 }
 DENTRO_ARMARIO = {"Contactor", "Relé", "Interruptor / guardamotor", "Protección", "Arrancador suave"}
 FUERA_O_PUERTA = {"Motor", "Piloto", "Pulsador / selector", "Final de carrera"}
@@ -56,6 +64,7 @@ def solo_placa(equipos):
     no llevan etiqueta. Si no hay plano de placa, se quitan los tipos que van
     en la puerta o fuera (motores, pilotos, pulsadores, finales de carrera).
     """
+    equipos = [e for e in equipos if e["tipo"] != TIPOS["X"]]     # sin regletas de bornas
     if any(e["ubicacion"] == "Placa" for e in equipos):
         return [e for e in equipos if e["ubicacion"] == "Placa"]
     return [e for e in equipos if e["tipo"] not in FUERA_O_PUERTA]
@@ -120,17 +129,23 @@ def extraer_elementos(paginas):
     distintas y se quedan solo los textos que lo cumplen; así se descartan
     números de pin (A1, A2…), cables, referencias de fabricante, etc.
     """
+    todos = []                            # designaciones válidas de cualquier estilo
+    primera = {}                          # designación -> (página, línea, x) de su primera aparición en el esquema
+    placa_pos = {}                        # designación -> (tam, página, y, x) de su rótulo grande en el plano de la placa
+    primera_armario = {}                  # lo mismo en los planos de armario (solo si no sale en el esquema)
     candidatos = []                       # (texto, tam, estilo, horizontal, pagina, es_ocr)
     zonas = {"Placa": "", "Puerta": ""}   # texto de las páginas de armario
     for pag in paginas:
         pie = pag.texto_zona(pag.alto * PIE)
         cuerpo = pag.texto_zona(0, pag.alto * PIE)
         es_armario = False
+        es_placa = False
         for zona, palabras in ZONAS:
             # sin \b: el OCR a veces quita espacios ("PLACA2016VISION")
             if any(re.search(r"(?<![A-Z])" + p + r"(?![A-Z])", pie, re.IGNORECASE) for p in palabras):
                 zonas[zona] += " " + cuerpo
                 es_armario = True
+                es_placa = es_placa or zona == "Placa"
         if _regleta_de(pag):
             continue  # los planos de bornes no tienen elementos
         if es_armario and pag.origen == "ocr":
@@ -153,7 +168,16 @@ def extraer_elementos(paginas):
                 if m:
                     partes = [m.group(1)]
             for parte in partes:
-                if EQUIPO_RE.fullmatch(parte) and not NO_EQUIPO_RE.match(parte):
+                es_letras = SOLO_LETRAS_RE.fullmatch(parte) and tipo_equipo(parte) in TIPOS_PLACA
+                if (EQUIPO_RE.fullmatch(parte) or es_letras) and not NO_EQUIPO_RE.match(parte):
+                    todos.append((parte, t.dir == HORIZONTAL, pag.origen == "ocr"))
+                    # Orden de lectura: página, de arriba abajo (por líneas) y de izquierda a derecha
+                    pos = (pag.numero, round(t.y0 / LINEA), t.x0)
+                    if es_placa and (parte not in placa_pos or t.tam > placa_pos[parte][0]):
+                        placa_pos[parte] = (t.tam, pag.numero, (t.y0 + t.y1) / 2, t.x0)
+                    destino = primera_armario if es_armario else primera
+                    if parte not in destino or pos < destino[parte]:
+                        destino[parte] = pos
                     candidatos.append((parte, t.tam, t.estilo, t.dir == HORIZONTAL, pag.numero, pag.origen == "ocr"))
     if not candidatos:
         return []
@@ -186,6 +210,18 @@ def extraer_elementos(paginas):
     if not paginas_de:
         return []
 
+    # Los elementos que salen en la placa pero con otro tamaño/color (U30, U01,
+    # U150…) no se pierden: se aceptan solo si el prefijo es de un tipo conocido.
+    placa = zonas["Placa"]
+    for txt, horiz, ocr in todos:
+        if horiz and not ocr and txt not in paginas_de and tipo_equipo(txt) in TIPOS_PLACA and re.fullmatch(r"[A-Z]{1,3}\d{1,3}(?:\.\d+)?", txt) and re.fullmatch(r"[A-Z]+", re.match(r"[A-Z]+", txt).group()) and tipo_equipo(txt) and re.match(r"[A-Z]+", txt).group() in TIPOS and re.search(
+                r"(?<![A-Z])" + re.escape(txt) + r"(?![A-Z0-9]|\.[0-9])", placa) and not _parece_cable(txt, {t for t, _, _ in todos}):
+            paginas_de[txt].add(0)
+    # Las de solo letras (RS, KMN…) deben figurar en la placa
+    for d in [d for d in paginas_de if SOLO_LETRAS_RE.fullmatch(d)]:
+        if not re.search(r"(?<![A-Z])" + re.escape(d) + r"(?![A-Z0-9])", placa):
+            del paginas_de[d]
+
     def esta_en(d, texto):
         # KM100 no debe casar con M100, ni Q1 con Q100 / Q1.1
         return re.search(r"(?<![A-Z])" + re.escape(d) + r"(?![0-9]|\.[0-9])", texto) is not None
@@ -206,8 +242,33 @@ def extraer_elementos(paginas):
             return "Placa"
         return "Fuera del armario"
 
+    # Orden de las etiquetas = el del plano de la placa (implantación): por filas de
+    # carriles, de arriba abajo, y dentro de cada fila de izquierda a derecha. Así se
+    # pegan seguidas, sin buscarlas. Los que no salen en ese plano van después, en
+    # orden de lectura del esquema, y al final los que solo salen en armario.
+    fila = {}
+    for pagina in {v[1] for v in placa_pos.values()}:
+        ys = sorted({v[2] for v in placa_pos.values() if v[1] == pagina})
+        n = 0
+        for i, y in enumerate(ys):
+            if i and y - ys[i - 1] > GAP_FILA:
+                n += 1
+            fila[(pagina, y)] = n
+
+    def clave(d):
+        if d in placa_pos:
+            _, pagina, y, x = placa_pos[d]
+            return (0, (pagina, fila[(pagina, y)], x), orden_natural(d))
+        if d in primera:
+            return (1, primera[d], orden_natural(d))
+        if d in primera_armario:
+            return (2, primera_armario[d], orden_natural(d))
+        return (3, (0, 0, 0), orden_natural(d))
+
+    # Las regletas de bornas (X1, X2, X10…) no llevan etiqueta de elemento: sus
+    # bornas ya salen en la pestaña Bornas.
     return [{"designacion": d, "tipo": tipo_equipo(d), "ubicacion": ubicacion(d), "paginas": sorted(paginas_de[d])}
-            for d in sorted(paginas_de, key=orden_natural)]
+            for d in sorted(paginas_de, key=clave) if tipo_equipo(d) != TIPOS["X"]]
 
 
 def _parece_cable(txt, textos):
